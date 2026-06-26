@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manual & Orçamento SISP - TI (v2)</title>
+    <title>Manual & Orçamento SISP - TI (v3 Fix)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Biblioteca html2pdf para geração do PDF via Client-side -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
         :root {
-            --primary: #f97316; /* Laranja SISP */
+            --primary: #f97316;
             --primary-hover: #ea580c;
             --primary-light: #ffedd5;
             --text-main: #1f2937;
@@ -118,21 +118,10 @@
             margin-bottom: 15px;
         }
 
-        p, ul {
-            margin-bottom: 15px;
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
+        p, ul { margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 5px; }
 
-        ul {
-            padding-left: 20px;
-        }
-
-        li {
-            margin-bottom: 5px;
-        }
-
-        /* Seções e Cards Internos */
         .card {
             background: #fafafa;
             border: 1px solid var(--border);
@@ -162,14 +151,7 @@
             font-weight: 600;
         }
 
-        /* Formulários */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
+        /* Grids Formulários */
         .grid-4 {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -183,17 +165,11 @@
             margin-bottom: 12px;
         }
 
-        .form-group.full-width {
-            grid-column: span 4;
-        }
+        .form-group.full-width { grid-column: span 4; }
         
         @media(max-width: 768px) {
-            .grid-4, .grid-2 {
-                grid-template-columns: 1fr;
-            }
-            .form-group.full-width {
-                grid-column: span 1;
-            }
+            .grid-4 { grid-template-columns: 1fr; }
+            .form-group.full-width { grid-column: span 1; }
         }
 
         label {
@@ -214,14 +190,8 @@
             transition: border-color 0.2s;
         }
 
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--primary);
-        }
-
-        textarea {
-            resize: vertical;
-            height: 70px;
-        }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+        textarea { resize: vertical; height: 70px; }
 
         /* Botões */
         .btn-container {
@@ -246,19 +216,10 @@
             gap: 8px;
         }
 
-        .btn:hover {
-            background: var(--primary-hover);
-        }
+        .btn:hover { background: var(--primary-hover); }
+        .btn-secondary { background: #374151; }
+        .btn-secondary:hover { background: #1f2937; }
 
-        .btn-secondary {
-            background: #374151;
-        }
-
-        .btn-secondary:hover {
-            background: #1f2937;
-        }
-
-        /* Calculadora Result Box */
         .result-box {
             margin-top: 15px;
             background: var(--primary-light);
@@ -271,7 +232,6 @@
             text-align: center;
         }
 
-        /* Gantt Chart Customizado */
         .gantt-container {
             margin-top: 20px;
             border: 1px solid var(--border);
@@ -311,6 +271,7 @@
 
         .gantt-timeline {
             flex-grow: 1;
+            width: calc(100% - 220px); /* Garantia de limite de largura para PDF */
             background: #e5e7eb;
             height: 24px;
             border-radius: 12px;
@@ -320,6 +281,8 @@
         .gantt-bar {
             position: absolute;
             height: 100%;
+            top: 0; 
+            bottom: 0;
             background: linear-gradient(90deg, var(--primary), #fb923c);
             border-radius: 12px;
             min-width: 20px;
@@ -332,38 +295,42 @@
             box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
         }
 
-        /* Cabeçalho do relatório impresso */
+        /* ---------------------------------------------------- */
+        /* MODO IMPRESSÃO (CONTROLE VIA JS PARA NÃO BUGAR HTML2PDF) */
+        /* ---------------------------------------------------- */
+        
+        #relatorio-impressao-escopo {
+            background-color: white; /* Força fundo branco no container alvo */
+            border-radius: 8px;
+        }
+
         .pdf-header {
-            display: none;
+            display: none; /* Padrão tela: Oculto */
             border-bottom: 2px solid var(--primary);
             padding-bottom: 15px;
             margin-bottom: 25px;
         }
         
-        .pdf-header table {
-            margin: 0;
-        }
-        
-        .pdf-header td {
-            border: none;
-            padding: 4px 0;
+        .pdf-header table { margin: 0; }
+        .pdf-header td { border: none; padding: 4px 0; }
+
+        /* ATIVADO APENAS DURANTE O CLIQUE DE EXPORTAR */
+        .modo-exportacao-pdf {
+            padding: 20px !important;
         }
 
-        /* Configurações específicas para Impressão / PDF */
-        @media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            .container {
-                box-shadow: none;
-            }
-            .tabs, .data-entry-zone, .btn-container {
-                display: none !important;
-            }
-            .pdf-header {
-                display: block !important;
-            }
+        .modo-exportacao-pdf .pdf-header {
+            display: block !important; /* Força exibir no PDF */
+        }
+
+        .modo-exportacao-pdf .gantt-bar {
+            background: #f97316 !important; /* Remove gradiente para evitar falha no Canvas */
+            box-shadow: none !important; /* Remove sombra no PDF */
+            color: #ffffff !important;
+        }
+        
+        .modo-exportacao-pdf .gantt-timeline {
+            background-color: #e5e7eb !important;
         }
     </style>
 </head>
@@ -380,14 +347,12 @@
             <button class="tab-btn" onclick="switchTab('orcamento')">Orçamento & Gráfico de Gantt</button>
         </div>
 
-        <!-- ABA 1: MANUAL & CALCULADORA -->
         <div id="manual" class="tab-content active">
             <h2>Metodologia de Formulação de Custos</h2>
-            <p>Esta ferramenta implementa as diretrizes do SISP para contratações de TI baseadas em Catálogo de Serviços, realizando a conversão do custo de mão de obra (Folha Desonerada + Benefícios + Encargos Sociais) em preço de venda de hora técnica corporativa e, consecutivamente, no valor de conversão por <strong>Unidade de Serviço Técnico (UST)</strong>.</p>
+            <p>Esta ferramenta implementa as diretrizes do SISP para contratações de TI baseadas em Catálogo de Serviços, realizando a conversão do custo de mão de obra em valor de conversão por <strong>Unidade de Serviço Técnico (UST)</strong>.</p>
             
             <div class="card">
                 <h3>Calculadora Interativa de UST</h3>
-                <p>Utilize esta seção para simular ou descobrir o valor de referência da UST baseado no perfil profissional alocado, esforço em horas e peso estipulado no catálogo.</p>
                 
                 <div class="grid-4">
                     <div class="form-group" style="grid-column: span 2;">
@@ -408,7 +373,7 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Horas Estimadas da Atividade</label>
+                        <label>Horas Estimadas</label>
                         <input type="number" id="calc-horas" value="4" min="1" oninput="calcularPrecoUST()">
                     </div>
                     <div class="form-group">
@@ -424,22 +389,10 @@
                     <button class="btn" onclick="aplicarUSTCalculada()">Aplicar este valor no Orçamento</button>
                 </div>
             </div>
-
-            <h3>Exemplo de Fluxo com Base nos Dados Reais</h3>
-            <p>Conforme o catálogo homologado extraído da sua planilha, o cálculo obedece à equação conceitual:</p>
-            <div style="background: #fff; padding: 12px; border: 1px solid var(--border); font-family: monospace; font-size: 0.9rem; margin-bottom: 15px; border-radius: 4px; text-align: center;">
-                Preço Unitário por UST = (Preço Venda Hora × Horas Estimadas) ÷ Peso UST
-            </div>
-            <ul>
-                <li><strong>Exemplo A:</strong> Tratamento de Incidente Crítico executado por Analista Sênior (R$ 120,36/h). Esforço de 4 horas necessárias = R$ 481,44 de receita exigida. Dividido pelo peso de 8 USTs estabelecido pelo órgão = <strong>R$ 60,18 por UST</strong>.</li>
-                <li><strong>Exemplo B:</strong> Atendimento N1 simples executado por Técnico N1 (R$ 36,88/h). Esforço de 1 hora = R$ 36,88. Dividido por 2 USTs de peso = <strong>R$ 18,44 por UST</strong>.</li>
-            </ul>
         </div>
 
-        <!-- ABA 2: ORÇAMENTO -->
         <div id="orcamento" class="tab-content">
             
-            <!-- Zona Exclusiva de Entrada de Dados (Ocultada no PDF) -->
             <div class="data-entry-zone">
                 <h2>1. Identificação do Solicitante (Cliente)</h2>
                 <div class="card grid-4">
@@ -449,7 +402,7 @@
                     </div>
                     <div class="form-group">
                         <label>CNPJ</label>
-                        <input type="text" id="cli-cnpj" value="00.000.000/0001-00" placeholder="00.000.000/0001-00">
+                        <input type="text" id="cli-cnpj" value="00.000.000/0001-00">
                     </div>
                     <div class="form-group">
                         <label>Telefone</label>
@@ -466,11 +419,10 @@
                     <div class="form-group">
                         <label>Valor Referencial da UST (R$)</label>
                         <input type="number" id="valor-ust-global" value="60.18" step="0.01" oninput="atualizarTotaisOrcamento()">
-                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Este valor multiplicará o peso UST de cada serviço inserido.</span>
                     </div>
                 </div>
 
-                <h2>3. Composição de Serviços do Cronograma</h2>
+                <h2>3. Composição de Serviços</h2>
                 <div class="card">
                     <div class="grid-4">
                         <div class="form-group" style="grid-column: span 2;">
@@ -505,30 +457,26 @@
                         </div>
 
                         <div class="form-group full-width">
-                            <label>Descrição Detalhada da Entrega / Atividade Específica</label>
-                            <textarea id="srv-descricao" placeholder="Descreva o escopo customizado ou justificativa técnica para o atendimento desta demanda corporativa..."></textarea>
+                            <label>Descrição Detalhada do Escopo</label>
+                            <textarea id="srv-descricao" placeholder="Descreva a justificativa técnica..."></textarea>
                         </div>
                     </div>
 
                     <div class="btn-container">
-                        <button class="btn" onclick="adicionarServicoOrcamento()">Adicionar Serviço ao Orçamento</button>
+                        <button class="btn" onclick="adicionarServicoOrcamento()">Adicionar Serviço</button>
                     </div>
                 </div>
                 
                 <div class="btn-container" style="margin-bottom: 25px;">
-                    <button class="btn btn-secondary" onclick="makePdf()">
-                        🖨️ Gerar Relatório Consolidado & Gantt (PDF)
-                    </button>
+                    <button class="btn btn-secondary" onclick="makePdf()">🖨️ Gerar Orçamento & Gantt (PDF)</button>
                 </div>
             </div>
 
-            <!-- ÁREA DO RELATÓRIO PREVISTO PARA IMPRESSÃO (ESTRUTURA COMPLETA) -->
             <div id="relatorio-impressao-escopo">
                 
-                <!-- Cabeçalho Dinâmico Visível unicamente no PDF -->
                 <div class="pdf-header">
                     <div style="float: right; text-align: right; font-size: 0.8rem; color: var(--text-muted);">
-                        Relatório Emitido em: <span id="pdf-data-emissao"></span>
+                        Emissão: <span id="pdf-data-emissao"></span>
                     </div>
                     <h1 style="color: var(--primary); font-size: 1.6rem; margin-bottom: 5px;">PROPOSTA TÉCNICO-COMERCIAL SISP</h1>
                     <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Modelo de Composições Tecnológicas e Alocação por Demanda</p>
@@ -554,7 +502,7 @@
                     </table>
                 </div>
 
-                <h2 class="titulo-sessao-print">Planilha de Serviços Adicionados</h2>
+                <h2>Planilha de Serviços Adicionados</h2>
                 <table>
                     <thead>
                         <tr>
@@ -567,10 +515,9 @@
                         </tr>
                     </thead>
                     <tbody id="tabela-itens-orcamento">
-                        <!-- Linhas injetadas dinamicamente via engine Javascript -->
                         <tr id="linha-vazia-sinalizacao">
                             <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
-                                Nenhum serviço estruturado no orçamento até o momento.
+                                Adicione serviços para visualizar o orçamento e o gráfico de Gantt.
                             </td>
                         </tr>
                     </tbody>
@@ -584,10 +531,10 @@
                     </tfoot>
                 </table>
 
-                <h2 class="titulo-sessao-print" style="margin-top: 30px;">Cronograma de Execução e Precedência (Gantt)</h2>
+                <h2 style="margin-top: 30px;">Cronograma de Execução (Gantt)</h2>
                 <div class="gantt-container" id="gantt-chart-wrapper">
-                    <p id="gantt-aviso-vazio" style="text-align: center; color: var(--text-muted); padding: 15px 0; margin: 0;">
-                        Aguardando a inclusão de itens cronológicos para renderizar a linha do tempo.
+                    <p style="text-align: center; color: var(--text-muted); padding: 15px 0; margin: 0;">
+                        Aguardando a inclusão de itens cronológicos.
                     </p>
                 </div>
             </div>
@@ -596,294 +543,199 @@
     </div>
 
     <script>
-        // Mapeamento estruturado baseado no Catalogo_UST real da planilha do usuário
         const catalogoServicosPorPerfil = {
-            "Técnico de Suporte (N1)": [
-                { nome: "Atendimento N1 — Chamado simples", ust: 2 }
-            ],
-            "Técnico de Suporte (N2)": [
-                { nome: "Atendimento N2 — Chamado técnico", ust: 4 }
-            ],
-            "Analista de Infra Sênior": [
-                { nome: "Tratamento de incidente crítico", ust: 8 }
-            ],
-            "Desenvolvedor Sênior": [
-                { nome: "Code review técnico", ust: 4 }
-            ],
-            "Analista de Testes/QA": [
-                { nome: "Apoio a testes funcionais", ust: 4 }
-            ],
-            "Analista de BI / Dados": [
-                { nome: "Criação/ajuste de painel analítico simples", ust: 8 },
-                { nome: "Ingestão de dados simples em Data Lake", ust: 10 }
-            ],
-            "Arquiteto de Software": [
-                { nome: "Desenho e validação de arquitetura de software", ust: 12 }
-            ]
+            "Técnico de Suporte (N1)": [{ nome: "Atendimento N1 — Chamado simples", ust: 2 }],
+            "Técnico de Suporte (N2)": [{ nome: "Atendimento N2 — Chamado técnico", ust: 4 }],
+            "Analista de Infra Sênior": [{ nome: "Tratamento de incidente crítico", ust: 8 }],
+            "Desenvolvedor Sênior": [{ nome: "Code review técnico", ust: 4 }],
+            "Analista de Testes/QA": [{ nome: "Apoio a testes funcionais", ust: 4 }],
+            "Analista de BI / Dados": [{ nome: "Criação/ajuste de painel analítico", ust: 8 }, { nome: "Ingestão de dados em Data Lake", ust: 10 }],
+            "Arquiteto de Software": [{ nome: "Desenho de arquitetura", ust: 12 }]
         };
 
         let dbOrcamento = [];
 
-        // Engine de cálculo automático da Aba 1
         function calcularPrecoUST() {
             const valorHora = parseFloat(document.getElementById('calc-perfil').value);
             const horas = parseFloat(document.getElementById('calc-horas').value) || 0;
             const peso = parseFloat(document.getElementById('calc-peso').value) || 1;
-
-            const resultadoUST = (valorHora * horas) / peso;
-            document.getElementById('calc-resultado').innerText = `Valor Resultante por UST: R$ ${resultadoUST.toFixed(2).replace('.', ',')}`;
-            return resultadoUST;
+            const res = (valorHora * horas) / peso;
+            document.getElementById('calc-resultado').innerText = `Valor Resultante por UST: R$ ${res.toFixed(2).replace('.', ',')}`;
+            return res;
         }
 
         function aplicarUSTCalculada() {
-            const valorCalculado = calcularPrecoUST();
-            document.getElementById('valor-ust-global').value = valorCalculado.toFixed(2);
-            alert(`Sucesso! O valor de R$ ${valorCalculado.toFixed(2).replace('.', ',')} foi definido como a taxa referencial na aba de orçamento.`);
+            const valor = calcularPrecoUST();
+            document.getElementById('valor-ust-global').value = valor.toFixed(2);
             switchTab('orcamento');
             atualizarTotaisOrcamento();
         }
 
-        // Atualização Dinâmica Cascata (Profissional -> Serviço)
         function atualizarDropdownServicos() {
-            const profissionalSelecionado = document.getElementById('srv-profissional').value;
-            const srvSelect = document.getElementById('srv-servico');
-            
-            srvSelect.innerHTML = '';
-            
-            if (!profissionalSelecionado) {
-                srvSelect.innerHTML = '<option value="">-- Selecione o Profissional Primeiro --</option>';
-                srvSelect.disabled = true;
-                return;
+            const prof = document.getElementById('srv-profissional').value;
+            const srv = document.getElementById('srv-servico');
+            srv.innerHTML = '';
+            if (!prof) {
+                srv.innerHTML = '<option value="">-- Selecione o Profissional --</option>';
+                srv.disabled = true; return;
             }
-
-            srvSelect.disabled = false;
-            const listaServicos = catalogoServicosPorPerfil[profissionalSelecionado];
-            
-            listaServicos.forEach((srv, index) => {
+            srv.disabled = false;
+            catalogoServicosPorPerfil[prof].forEach((s, idx) => {
                 let opt = document.createElement('option');
-                opt.value = index;
-                opt.text = `${srv.nome} (${srv.ust} UST)`;
-                srvSelect.appendChild(opt);
+                opt.value = idx; opt.text = `${s.nome} (${s.ust} UST)`;
+                srv.appendChild(opt);
             });
         }
 
-        // Adicionar Registro à Coleção
         function adicionarServicoOrcamento() {
-            const profissional = document.getElementById('srv-profissional').value;
-            const srvIndex = document.getElementById('srv-servico').value;
-            const dataInicio = document.getElementById('srv-inicio').value;
-            const dataFim = document.getElementById('srv-fim').value;
-            const descricao = document.getElementById('srv-descricao').value;
+            const prof = document.getElementById('srv-profissional').value;
+            const srvIdx = document.getElementById('srv-servico').value;
+            const ini = document.getElementById('srv-inicio').value;
+            const fim = document.getElementById('srv-fim').value;
+            const desc = document.getElementById('srv-descricao').value;
 
-            if (!profissional || srvIndex === "" || !dataInicio || !dataFim || !descricao.trim()) {
-                alert("Por favor, realize o preenchimento de todos os campos obrigatórios do serviço.");
-                return;
+            if (!prof || srvIdx === "" || !ini || !fim || !desc.trim()) {
+                alert("Preencha todos os campos do serviço."); return;
+            }
+            if (new Date(ini) > new Date(fim)) {
+                alert("A data inicial não pode ser maior que a final."); return;
             }
 
-            if (new Date(dataInicio) > new Date(dataFim)) {
-                alert("Inconsistência cronológica: A data de início não pode ultrapassar o término.");
-                return;
-            }
-
-            const servicoAlvo = catalogoServicosPorPerfil[profissional][parseInt(srvIndex)];
-
-            const novoItem = {
-                id: Date.now(),
-                servicoNome: servicoAlvo.nome,
-                profissional: profissional,
-                pesoUst: servicoAlvo.ust,
-                dataInicio: dataInicio,
-                dataFim: dataFim,
-                descricao: descricao
-            };
-
-            dbOrcamento.push(novoItem);
+            const refServ = catalogoServicosPorPerfil[prof][parseInt(srvIdx)];
+            dbOrcamento.push({
+                servicoNome: refServ.nome, profissional: prof, pesoUst: refServ.ust,
+                dataInicio: ini, dataFim: fim, descricao: desc
+            });
             
-            // Resetar formulário de inserção
             document.getElementById('srv-descricao').value = '';
-            
             atualizarVisualizacaoOrcamento();
         }
 
-        // Processamento Geral de Interface e Totais
         function atualizarVisualizacaoOrcamento() {
             const tbody = document.getElementById('tabela-itens-orcamento');
-            const avisoVazio = document.getElementById('linha-vazia-sinalizacao');
+            const aviso = document.getElementById('linha-vazia-sinalizacao');
             
             if(dbOrcamento.length === 0) {
-                avisoVazio.style.display = 'table-row';
-                // Limpar linhas adicionais
-                document.querySelectorAll('.item-dinamico-linha').forEach(el => el.remove());
-                atualizarTotaisOrcamento();
-                renderizarGantt();
-                return;
+                aviso.style.display = 'table-row';
+                document.querySelectorAll('.item-dinamico-linha').forEach(e => e.remove());
+                atualizarTotaisOrcamento(); renderizarGantt(); return;
             }
 
-            if(avisoVazio) avisoVazio.style.display = 'none';
-            document.querySelectorAll('.item-dinamico-linha').forEach(el => el.remove());
+            if(aviso) aviso.style.display = 'none';
+            document.querySelectorAll('.item-dinamico-linha').forEach(e => e.remove());
 
-            const valorUstRef = parseFloat(document.getElementById('valor-ust-global').value) || 0;
+            const vUst = parseFloat(document.getElementById('valor-ust-global').value) || 0;
 
-            dbOrcamento.forEach(item => {
-                let tr = document.createElement('tr');
-                tr.className = 'item-dinamico-linha';
-                
-                let valorFinanceiroItem = item.pesoUst * valorUstRef;
-
+            dbOrcamento.forEach(i => {
+                let tr = document.createElement('tr'); tr.className = 'item-dinamico-linha';
+                let totalI = i.pesoUst * vUst;
                 tr.innerHTML = `
-                    <td style="font-weight: 500;">${item.servicoNome}</td>
-                    <td><span style="font-size:0.8rem; background:#f3f4f6; padding:3px 6px; border-radius:4px;">${item.profissional}</span></td>
-                    <td style="color: var(--text-muted); font-size: 0.85rem; max-width: 280px; word-wrap: break-word;">${item.descricao}</td>
-                    <td style="text-align: center; font-weight:600;">${item.pesoUst} UST</td>
-                    <td style="text-align: right; font-weight:600;">R$ ${valorFinanceiroItem.toFixed(2).replace('.', ',')}</td>
-                    <td style="text-align: center; font-size: 0.8rem; color: var(--text-muted); white-space: nowrap;">
-                        ${formatarDataVisual(item.dataInicio)}<br>até<br>${formatarDataVisual(item.dataFim)}
-                    </td>
+                    <td style="font-weight: 500;">${i.servicoNome}</td>
+                    <td><span style="font-size:0.8rem; background:#f3f4f6; padding:3px 6px; border-radius:4px;">${i.profissional}</span></td>
+                    <td style="color: #6b7280; font-size: 0.85rem; max-width: 250px;">${i.descricao}</td>
+                    <td style="text-align: center; font-weight:600;">${i.pesoUst}</td>
+                    <td style="text-align: right; font-weight:600;">R$ ${totalI.toFixed(2).replace('.',',')}</td>
+                    <td style="text-align: center; font-size: 0.8rem; color: #6b7280;">${formatarDataVisual(i.dataInicio)}<br>até<br>${formatarDataVisual(i.dataFim)}</td>
                 `;
                 tbody.insertBefore(tr, tbody.lastElementChild.parentNode.querySelector('tfoot'));
             });
 
-            atualizarTotaisOrcamento();
-            renderizarGantt();
+            atualizarTotaisOrcamento(); renderizarGantt();
         }
 
         function atualizarTotaisOrcamento() {
-            const valorUstRef = parseFloat(document.getElementById('valor-ust-global').value) || 0;
-            let totalUst = 0;
-
-            dbOrcamento.forEach(item => {
-                totalUst += item.pesoUst;
-            });
-
-            let totalFinanceiro = totalUst * valorUstRef;
-
-            document.getElementById('total-ust-somatorio').innerText = `${totalUst} UST`;
-            document.getElementById('total-financeiro-somatorio').innerText = `R$ ${totalFinanceiro.toFixed(2).replace('.', ',')}`;
+            const vUst = parseFloat(document.getElementById('valor-ust-global').value) || 0;
+            let totU = 0; dbOrcamento.forEach(i => totU += i.pesoUst);
+            let totF = totU * vUst;
+            document.getElementById('total-ust-somatorio').innerText = `${totU} UST`;
+            document.getElementById('total-financeiro-somatorio').innerText = `R$ ${totF.toFixed(2).replace('.',',')}`;
             
-            // Atualizar tempo de execução dinamicamente se houver linhas de orçamento mudando a taxa
             document.querySelectorAll('.item-dinamico-linha').forEach((tr, idx) => {
-                let item = dbOrcamento[idx];
-                if(item) {
-                    let novoValor = item.pesoUst * valorUstRef;
-                    tr.children[4].innerText = `R$ ${novoValor.toFixed(2).replace('.', ',')}`;
-                }
+                if(dbOrcamento[idx]) tr.children[4].innerText = `R$ ${(dbOrcamento[idx].pesoUst * vUst).toFixed(2).replace('.',',')}`;
             });
         }
 
-        // Motor Gráfico do Cronograma de Gantt NATIVO em HTML/CSS estruturado
         function renderizarGantt() {
-            const container = document.getElementById('gantt-chart-wrapper');
-            
+            const c = document.getElementById('gantt-chart-wrapper');
             if (dbOrcamento.length === 0) {
-                container.innerHTML = `<p id="gantt-aviso-vazio" style="text-align: center; color: var(--text-muted); padding: 15px 0; margin: 0;">
-                    Aguardando a inclusão de itens cronológicos para renderizar a linha do tempo.
-                </p>`;
-                return;
+                c.innerHTML = '<p style="text-align:center; color:#6b7280;">Aguardando itens.</p>'; return;
+            }
+            c.innerHTML = '';
+            
+            let datas = [];
+            dbOrcamento.forEach(i => {
+                datas.push(new Date(i.dataInicio + "T00:00:00"));
+                datas.push(new Date(i.dataFim + "T00:00:00"));
+            });
+
+            let min = new Date(Math.min(...datas)); let max = new Date(Math.max(...datas));
+            let delta = max - min;
+
+            let h = document.createElement('div'); h.className = 'gantt-header-row';
+            h.innerHTML = `<div style="width:220px;">Atividade</div>
+                <div style="flex-grow:1; display:flex; justify-content:space-between; font-size:0.75rem;">
+                <span>Início: ${formatarDataVisual(min.toISOString().split('T')[0])}</span>
+                <span>Término: ${formatarDataVisual(max.toISOString().split('T')[0])}</span></div>`;
+            c.appendChild(h);
+
+            dbOrcamento.forEach(i => {
+                let s = new Date(i.dataInicio + "T00:00:00"); let e = new Date(i.dataFim + "T00:00:00");
+                let left = delta === 0 ? 0 : ((s - min) / delta) * 100;
+                let w = delta === 0 ? 100 : ((e - s) / delta) * 100;
+                if (w === 0) w = 3; // mínimo para marcar marco
+                
+                let diff = Math.ceil((e - s) / (1000*60*60*24)) + 1;
+                let r = document.createElement('div'); r.className = 'gantt-row';
+                r.innerHTML = `
+                    <div class="gantt-label" title="${i.servicoNome}">${i.servicoNome}</div>
+                    <div class="gantt-timeline">
+                        <div class="gantt-bar" style="left:${left}%; width:${w}%;">${w > 10 ? diff+'d' : ''}</div>
+                    </div>`;
+                c.appendChild(r);
+            });
+        }
+
+        function formatarDataVisual(d) {
+            if(!d) return ""; const [y,m,dia] = d.split('-'); return `${dia}/${m}/${y}`;
+        }
+
+        function switchTab(tId) {
+            document.querySelectorAll('.tab-content, .tab-btn').forEach(e => e.classList.remove('active'));
+            document.getElementById(tId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Função de PDF Refatorada
+        function makePdf() {
+            if (dbOrcamento.length === 0) {
+                alert("Adicione pelo menos um serviço ao orçamento para gerar o PDF."); return;
             }
 
-            container.innerHTML = '';
-
-            // Mapeamento de Extremos Temporais
-            let datasAbsolutas = [];
-            dbOrcamento.forEach(i => {
-                datasAbsolutas.push(new Date(i.dataInicio + "T00:00:00"));
-                datasAbsolutas.push(new Date(i.dataFim + "T00:00:00"));
-            });
-
-            let minData = new Date(Math.min(...datasAbsolutas));
-            let maxData = new Date(Math.max(...datasAbsolutas));
+            document.getElementById('lbl-pdf-nome').innerText = document.getElementById('cli-nome').value || "-";
+            document.getElementById('lbl-pdf-cnpj').innerText = document.getElementById('cli-cnpj').value || "-";
+            document.getElementById('lbl-pdf-tel').innerText = document.getElementById('cli-tel').value || "-";
+            document.getElementById('lbl-pdf-email').innerText = document.getElementById('cli-email').value || "-";
             
-            let deltaTotalTempo = maxData - minData;
+            const vUst = parseFloat(document.getElementById('valor-ust-global').value) || 0;
+            document.getElementById('lbl-pdf-valust').innerText = vUst.toFixed(2).replace('.',',');
+            document.getElementById('pdf-data-emissao').innerText = new Date().toLocaleDateString('pt-BR');
 
-            // Injetar Header de Datas Limites do Projeto
-            let headerGantt = document.createElement('div');
-            headerGantt.className = 'gantt-header-row';
-            headerGantt.innerHTML = `
-                <div style="width: 220px;">Atividade Planejada</div>
-                <div style="flex-grow: 1; display: flex; justify-content: space-between; font-size: 0.75rem;">
-                    <span>Início Geral: ${formatarDataVisual(minData.toISOString().split('T')[0])}</span>
-                    <span>Término Geral: ${formatarDataVisual(maxData.toISOString().split('T')[0])}</span>
-                </div>
-            `;
-            container.appendChild(headerGantt);
-
-            // Injetar Barras do Cronograma
-            dbOrcamento.forEach(item => {
-                let dataStart = new Date(item.dataInicio + "T00:00:00");
-                let dataEnd = new Date(item.dataFim + "T00:00:00");
-                
-                let deslocamentoEsquerda = deltaTotalTempo === 0 ? 0 : ((dataStart - minData) / deltaTotalTempo) * 100;
-                let larguraBarra = deltaTotalTempo === 0 ? 100 : ((dataEnd - dataStart) / deltaTotalTempo) * 100;
-                
-                // Tratar atividades de marco ou mesmo dia único
-                if (larguraBarra === 0) larguraBarra = 4;
-
-                let diferencaDias = Math.ceil((dataEnd - dataStart) / (1000 * 60 * 60 * 24)) + 1;
-
-                let row = document.createElement('div');
-                row.className = 'gantt-row';
-                row.innerHTML = `
-                    <div class="gantt-label" title="${item.servicoNome}">${item.servicoNome}</div>
-                    <div class="gantt-timeline">
-                        <div class="gantt-bar" style="left: ${descolamentoEsquerda}%; width: ${larguraBarra}%;">
-                            ${larguraBarra > 8 ? diferencaDias + 'd' : ''}
-                        </div>
-                    </div>
-                `;
-                container.appendChild(row);
-            });
-        }
-
-        // Helpers de apoio e formatação
-        function formatarDataVisual(strData) {
-            if(!strData) return "";
-            const [ano, mes, dia] = strData.split('-');
-            return `${dia}/${mes}/${ano}`;
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            const elemento = document.getElementById('relatorio-impressao-escopo');
             
-            document.getElementById(tabId).classList.add('active');
+            // SOLUÇÃO: Aplicar a classe que revela o header e retira gradientes problemáticos antes do engine rodar
+            elemento.classList.add('modo-exportacao-pdf');
             
-            // Dar destaque visual no botão clicado
-            const botoes = document.querySelectorAll('.tab-btn');
-            if(tabId === 'manual') botoes[0].classList.add('active');
-            if(tabId === 'orcamento') botoes[1].classList.add('active');
-        }
-
-        // Execução do Processo de Geração de PDF via biblioteca MakePDF (html2pdf)
-        function makePdf() {
-            // Sincronizar metadados do formulário para o container estático do PDF
-            document.getElementById('lbl-pdf-nome').innerText = document.getElementById('cli-nome').value || "Não Informado";
-            document.getElementById('lbl-pdf-cnpj').innerText = document.getElementById('cli-cnpj').value || "Não Informado";
-            document.getElementById('lbl-pdf-tel').innerText = document.getElementById('cli-tel').value || "Não Informado";
-            document.getElementById('lbl-pdf-email').innerText = document.getElementById('cli-email').value || "Não Informado";
-            
-            const valorUSTRef = parseFloat(document.getElementById('valor-ust-global').value) || 0;
-            document.getElementById('lbl-pdf-valust').innerText = valorUSTRef.toFixed(2).replace('.', ',');
-            
-            // Setar data de emissão corrente
-            const hoje = new Date();
-            document.getElementById('pdf-data-emissao').innerText = hoje.toLocaleDateString('pt-BR');
-
-            // Capturar alvo do relatório técnico e configurar parâmetros profissionais
-            const elementoAlvo = document.getElementById('relatorio-impressao-escopo');
-            
-            const configuracaoPdf = {
-                margin:       12,
-                filename:     `Proposta_SISP_UST_${document.getElementById('cli-nome').value.replace(/\s+/g, '_')}.pdf`,
+            const config = {
+                margin:       10,
+                filename:     `Proposta_SISP_${document.getElementById('cli-nome').value.substring(0,15)}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
+                html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' }, // Fundo estrito branco
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Disparar geração assíncrona controlando classes de renderização
-            document.body.classList.add('gerando-pdf-layout');
-            
-            html2pdf().set(configuracaoPdf).from(elementoAlvo).save().then(() => {
-                document.body.classList.remove('gerando-pdf-layout');
+            html2pdf().set(config).from(elemento).save().then(() => {
+                // Remove a classe para que a tela do navegador volte à aparência normal
+                elemento.classList.remove('modo-exportacao-pdf');
             });
         }
     </script>
