@@ -3,185 +3,869 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orçamentador SISP Pro</title>
+    <title>Orçamento de TI - Padrão SISP</title>
+    
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- Frappe Gantt for Gantt Charts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
+
+    <!-- FullCalendar for Calendar view -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+
+    <!-- html2canvas para capturar o Gráfico de Gantt como imagem -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- pdfMake para exportação do PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
     <script>
         tailwind.config = {
-            darkMode: 'media',
-            theme: { 
+            theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['"Google Sans Flex"', 'sans-serif'],
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
                     }
-                } 
+                }
             }
         }
     </script>
     <style>
+        /* Importação da fonte Google Sans Flex */
         @font-face {
             font-family: 'Google Sans Flex';
-            font-style: normal;
-            font-weight: 100 1000;
-            src: url('https://cdn.jsdelivr.net/fontsource/fonts/google-sans-flex:vf@latest/latin-wght-normal.woff2') format('woff2-variations');
+            src: url('https://fonts.gstatic.com/s/googlesans/v14/4UaGrENHsxJlGDuGo1OIlL3Owp4.woff2') format('woff2');
+            font-weight: 100 900;
+            font-display: swap;
         }
-        body { font-family: 'Google Sans Flex', sans-serif; }
-        .gantt-bar { height: 24px; border-radius: 4px; transition: width 0.3s ease; }
+
+        body { 
+            font-family: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Custom scrollbar and minor tweaks */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .gantt-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: white;}
+        .gantt .bar-label { font-weight: 500; font-family: 'Google Sans Flex', sans-serif; }
+        
+        #calendar { min-height: 500px; background: white; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;}
+        .fc-theme-standard td, .fc-theme-standard th { border-color: #e2e8f0; }
+        .fc-event { cursor: pointer; }
     </style>
+    
+    <!-- PWA Setup -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk9yw6dhbWVudG8gVEkgU0lTUCIsCiAgInNob3J0X25hbWUiOiAiT3LDp2FtZW50byBUSSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZmZmZmZmIiwKICAidGhlbWVfY29sb3IiOiAiIzIyYzU1ZSIKfQ==">
+
+    <script>
+        // Mocking data based on "Composicao_Custos_TI_SISP_UST.xlsx"
+        const sispCatalog = [
+            { id: 'dev-b', category: 'Desenvolvimento', name: 'Desenvolvimento de Funcionalidade', complexity: 'Baixa', ustBase: 12 },
+            { id: 'dev-m', category: 'Desenvolvimento', name: 'Desenvolvimento de Funcionalidade', complexity: 'Média', ustBase: 24 },
+            { id: 'dev-a', category: 'Desenvolvimento', name: 'Desenvolvimento de Funcionalidade', complexity: 'Alta', ustBase: 48 },
+            { id: 'req-b', category: 'Requisitos', name: 'Levantamento de Requisitos', complexity: 'Baixa', ustBase: 8 },
+            { id: 'req-m', category: 'Requisitos', name: 'Levantamento de Requisitos', complexity: 'Média', ustBase: 16 },
+            { id: 'test-m', category: 'Testes', name: 'Execução de Testes Integrados', complexity: 'Média', ustBase: 10 },
+            { id: 'arch-a', category: 'Arquitetura', name: 'Definição de Arquitetura de Software', complexity: 'Alta', ustBase: 60 },
+            { id: 'sup-b', category: 'Suporte', name: 'Atendimento Nível 2', complexity: 'Baixa', ustBase: 4 }
+        ];
+
+        // Definição do Aplicativo para o Alpine.js
+        window.orcamentoApp = function() {
+            return {
+                isOnline: navigator.onLine,
+                isGeneratingPDF: false,
+                activeTab: 'info',
+                tabs: [
+                    { id: 'info', name: 'Dados da Proposta', icon: 'ph ph-identification-card' },
+                    { id: 'itens', name: 'Composição (Itens)', icon: 'ph ph-list-dashes' },
+                    { id: 'gantt', name: 'Cronograma (Gantt)', icon: 'ph ph-chart-bar-horizontal' },
+                    { id: 'calendario', name: 'Calendário', icon: 'ph ph-calendar' }
+                ],
+                
+                // State
+                baseUSTValue: 85.50,
+                items: [],
+                projectInfo: {
+                    empresa: '',
+                    cnpj: '',
+                    contato: '',
+                    email: '',
+                    telefone: '',
+                    dataProposta: new Date().toISOString().split('T')[0]
+                },
+                
+                // Modal Add State
+                showAddItemModal: false,
+                categories: [...new Set(sispCatalog.map(item => item.category))],
+                currentCatalogOptions: [],
+                newItem: { category: '', catalogId: '', start: '', end: '', ustBase: 0, name: '', complexity: '', description: '' },
+
+                // Modal Edit State
+                showEditModal: false,
+                editingItem: null,
+                editingItemDates: { start: '', end: '' },
+
+                // Componentes de Terceiros
+                ganttChart: null,
+                ganttViewMode: 'Week',
+                calendar: null,
+
+                init() {
+                    this.loadData();
+                    window.addEventListener('online', () => this.isOnline = true);
+                    window.addEventListener('offline', () => this.isOnline = false);
+
+                    this.$watch('items', () => {
+                        this.saveData();
+                        if(this.activeTab === 'gantt') this.renderGantt();
+                        if(this.activeTab === 'calendario') this.renderCalendar();
+                    }, { deep: true });
+
+                    this.$watch('baseUSTValue', () => this.saveData());
+                    this.$watch('projectInfo', () => this.saveData(), { deep: true });
+                },
+
+                get totalUST() {
+                    return this.items.reduce((acc, item) => {
+                        const adjustedUst = item.ustBase * (1 + (item.adjustment / 100));
+                        return acc + (adjustedUst * item.quantity);
+                    }, 0).toFixed(2);
+                },
+
+                get totalCost() {
+                    return this.totalUST * this.baseUSTValue;
+                },
+
+                calculateItemCost(item) {
+                    const adjustedUst = item.ustBase * (1 + (item.adjustment / 100));
+                    return adjustedUst * item.quantity * this.baseUSTValue;
+                },
+
+                formatCurrency(value) {
+                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+                },
+
+                updateCatalogOptions() {
+                    this.currentCatalogOptions = sispCatalog.filter(c => c.category === this.newItem.category);
+                    this.newItem.catalogId = '';
+                    this.newItem.ustBase = 0;
+                    this.newItem.description = '';
+                },
+
+                selectCatalogItem() {
+                    const selected = sispCatalog.find(c => c.id === this.newItem.catalogId);
+                    if (selected) {
+                        this.newItem.ustBase = selected.ustBase;
+                        this.newItem.name = selected.name;
+                        this.newItem.complexity = selected.complexity;
+                        
+                        const today = new Date();
+                        const nextWeek = new Date(today);
+                        nextWeek.setDate(nextWeek.getDate() + 7);
+                        this.newItem.start = today.toISOString().split('T')[0];
+                        this.newItem.end = nextWeek.toISOString().split('T')[0];
+                    }
+                },
+
+                addItem() {
+                    this.items.push({
+                        id: 'item_' + Date.now(),
+                        catalogId: this.newItem.catalogId,
+                        category: this.newItem.category,
+                        name: this.newItem.name,
+                        complexity: this.newItem.complexity,
+                        ustBase: this.newItem.ustBase,
+                        quantity: 1,
+                        adjustment: 0,
+                        start: this.newItem.start,
+                        end: this.newItem.end,
+                        description: this.newItem.description
+                    });
+                    this.showAddItemModal = false;
+                    this.newItem = { category: '', catalogId: '', start: '', end: '', ustBase: 0, name: '', complexity: '', description: '' };
+                },
+
+                deleteItem(id) {
+                    this.items = this.items.filter(item => item.id !== id);
+                },
+
+                editItem(item) {
+                    this.editingItem = item;
+                    this.editingItemDates = { start: item.start, end: item.end };
+                    this.showEditModal = true;
+                },
+
+                saveEditItem() {
+                    if(this.editingItem) {
+                        const index = this.items.findIndex(i => i.id === this.editingItem.id);
+                        if(index > -1) {
+                            this.items[index].start = this.editingItemDates.start;
+                            this.items[index].end = this.editingItemDates.end;
+                        }
+                    }
+                    this.showEditModal = false;
+                },
+
+                saveData() {
+                    localStorage.setItem('orcamentoSISP_items', JSON.stringify(this.items));
+                    localStorage.setItem('orcamentoSISP_baseValue', this.baseUSTValue.toString());
+                    localStorage.setItem('orcamentoSISP_projectInfo', JSON.stringify(this.projectInfo));
+                },
+
+                loadData() {
+                    try {
+                        const savedItems = localStorage.getItem('orcamentoSISP_items');
+                        if (savedItems) {
+                            const parsed = JSON.parse(savedItems);
+                            if (Array.isArray(parsed)) this.items = parsed;
+                        }
+                        const savedBase = localStorage.getItem('orcamentoSISP_baseValue');
+                        if (savedBase) this.baseUSTValue = parseFloat(savedBase);
+                        
+                        const savedInfo = localStorage.getItem('orcamentoSISP_projectInfo');
+                        if (savedInfo) {
+                            const parsedInfo = JSON.parse(savedInfo);
+                            this.projectInfo = { ...this.projectInfo, ...parsedInfo };
+                        }
+                    } catch (e) {
+                        console.error("Erro ao carregar dados", e);
+                        this.items = [];
+                    }
+                },
+
+                resetApp() {
+                    if(confirm("Tem certeza que deseja apagar todos os dados?")) {
+                        this.items = [];
+                        this.baseUSTValue = 85.50;
+                        this.projectInfo = { empresa: '', cnpj: '', contato: '', email: '', telefone: '', dataProposta: new Date().toISOString().split('T')[0] };
+                        localStorage.removeItem('orcamentoSISP_items');
+                        localStorage.removeItem('orcamentoSISP_baseValue');
+                        localStorage.removeItem('orcamentoSISP_projectInfo');
+                    }
+                },
+
+                // --- Import/Export Funções ---
+                exportData() {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                        baseUSTValue: this.baseUSTValue,
+                        projectInfo: this.projectInfo,
+                        items: this.items
+                    }));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "orcamento_sisp_" + new Date().getTime() + ".json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                },
+
+                importData(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            if (data.items && Array.isArray(data.items)) {
+                                this.items = data.items;
+                            }
+                            if (data.baseUSTValue) {
+                                this.baseUSTValue = parseFloat(data.baseUSTValue);
+                            }
+                            if (data.projectInfo) {
+                                this.projectInfo = { ...this.projectInfo, ...data.projectInfo };
+                            }
+                            alert('Orçamento importado com sucesso!');
+                        } catch (err) {
+                            alert('Erro ao importar o arquivo. Verifique se o JSON é válido.');
+                        }
+                        event.target.value = '';
+                    };
+                    reader.readAsText(file);
+                },
+
+                // --- PDF Export usando pdfMake + html2canvas ---
+                async makePDF() {
+                    this.isGeneratingPDF = true;
+                    
+                    try {
+                        const tableBody = [
+                            [
+                                { text: 'Atividade / Perfil', style: 'tableHeader' },
+                                { text: 'Complexidade', style: 'tableHeader' },
+                                { text: 'Esforço (UST)', style: 'tableHeader', alignment: 'right' },
+                                { text: 'Qtd', style: 'tableHeader', alignment: 'right' },
+                                { text: 'Custo Total', style: 'tableHeader', alignment: 'right' }
+                            ]
+                        ];
+
+                        this.items.forEach(item => {
+                            tableBody.push([
+                                {
+                                    stack: [
+                                        item.name,
+                                        item.description ? { text: item.description, fontSize: 8, italics: true, color: '#475569', margin: [0, 3, 0, 0] } : null
+                                    ].filter(Boolean)
+                                },
+                                item.complexity,
+                                { text: item.ustBase.toString(), alignment: 'right' },
+                                { text: item.quantity.toString(), alignment: 'right' },
+                                { text: this.formatCurrency(this.calculateItemCost(item)), alignment: 'right' }
+                            ]);
+                        });
+
+                        if (this.items.length === 0) {
+                             tableBody.push([{ text: 'Nenhum serviço adicionado.', colSpan: 5, alignment: 'center', margin: [0, 10] }, '', '', '', '']);
+                        }
+                        
+                        const formatData = (isoString) => {
+                            if(!isoString) return '___/___/____';
+                            return isoString.split('-').reverse().join('/');
+                        };
+
+                        // Estratégia de Captura do Gantt
+                        let ganttImage = null;
+                        if (this.items.length > 0) {
+                            // Salva a aba atual e vai para o gantt renderizá-lo adequadamente
+                            const originalTab = this.activeTab;
+                            this.activeTab = 'gantt';
+                            this.renderGantt(); 
+                            
+                            // Aguarda animações e carregamento do DOM do Frappe Gantt
+                            await new Promise(r => setTimeout(r, 600));
+                            
+                            const ganttContainer = document.querySelector('.gantt-container');
+                            if (ganttContainer) {
+                                const canvas = await html2canvas(ganttContainer, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+                                ganttImage = canvas.toDataURL('image/png');
+                            }
+                            
+                            // Restaura aba
+                            this.activeTab = originalTab;
+                        }
+
+                        // Configuração do conteúdo do Documento
+                        const docContent = [
+                            { text: 'Orçamento de Serviços de TI', style: 'header' },
+                            { text: 'Referência: Tabela SISP / UST\n\n', style: 'subheader' },
+                            
+                            { text: 'Dados da Empresa Contratante', style: 'sectionHeader' },
+                            { text: `Empresa: ${this.projectInfo.empresa || '__________________________________________________'}\nCNPJ: ${this.projectInfo.cnpj || '_____________________________________________________'}\nContato Responsável: ${this.projectInfo.contato || '_______________________________________'}\nE-mail: ${this.projectInfo.email || '_______________________'} Telefone: ${this.projectInfo.telefone || '__________________'}\nData da Proposta: ${formatData(this.projectInfo.dataProposta)}\n\n`, style: 'formFields' },
+                            
+                            { text: 'Resumo Financeiro', style: 'sectionHeader' },
+                            {
+                                columns: [
+                                    { text: `Valor Base UST: ${this.formatCurrency(this.baseUSTValue)}\nVolume Total de USTs: ${this.totalUST} USTs`, margin: [0, 5, 0, 0] },
+                                    { text: `Custo Total Estimado:\n${this.formatCurrency(this.totalCost)}`, alignment: 'right', style: 'totalHighlight' }
+                                ]
+                            },
+                            { text: '\n\nDetalhamento dos Serviços', style: 'sectionHeader' },
+                            {
+                                table: {
+                                    headerRows: 1,
+                                    widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+                                    body: tableBody
+                                },
+                                layout: 'lightHorizontalLines'
+                            }
+                        ];
+
+                        // Adiciona Imagem do Gantt se existir
+                        if (ganttImage) {
+                            docContent.push({ text: '\nCronograma de Execução (Gantt)', style: 'sectionHeader', pageBreak: 'before' });
+                            docContent.push({ image: ganttImage, width: 515 }); // 515px adequa perfeitamente à largura do A4 com margens padrão
+                        }
+
+                        docContent.push({ text: '\n\n\n\n_________________________________________________________\nAssinatura do Responsável', alignment: 'center', style: 'signature' });
+
+                        const docDefinition = {
+                            content: docContent,
+                            styles: {
+                                header: { fontSize: 20, bold: true, alignment: 'center', margin: [0, 0, 0, 5] },
+                                subheader: { fontSize: 11, alignment: 'center', color: '#666666' },
+                                sectionHeader: { fontSize: 13, bold: true, margin: [0, 15, 0, 8] },
+                                formFields: { lineHeight: 1.5, fontSize: 11 },
+                                tableHeader: { bold: true, fillColor: '#f1f5f9', margin: [4, 4] },
+                                totalHighlight: { fontSize: 14, bold: true, color: '#16a34a' },
+                                signature: { marginTop: 40, fontSize: 11, bold: true }
+                            },
+                            defaultStyle: {
+                                fontSize: 10
+                            }
+                        };
+
+                        pdfMake.createPdf(docDefinition).download('orcamento_sisp_' + new Date().getTime() + '.pdf');
+
+                    } catch (error) {
+                        console.error("Erro na geração do PDF: ", error);
+                        alert("Houve um erro ao processar o PDF. Tente novamente.");
+                    } finally {
+                        this.isGeneratingPDF = false;
+                    }
+                },
+
+                renderGantt() {
+                    if (this.items.length === 0) return;
+                    setTimeout(() => {
+                        const tasks = this.items.map(item => ({
+                            id: item.id,
+                            name: `${item.name} (${item.complexity})`,
+                            start: item.start,
+                            end: item.end,
+                            progress: 100,
+                            dependencies: ''
+                        }));
+
+                        const ganttEl = document.getElementById('gantt');
+                        if (ganttEl) ganttEl.innerHTML = '';
+                        
+                        try {
+                            this.ganttChart = new Gantt("#gantt", tasks, {
+                                header_height: 50, column_width: 30, step: 24,
+                                view_modes: ['Quarter Day', 'Half Day', 'Day', 'Week', 'Month'],
+                                bar_height: 20, bar_corner_radius: 3, arrow_curve: 5, padding: 18,
+                                view_mode: this.ganttViewMode, date_format: 'YYYY-MM-DD',
+                                on_date_change: (task, start, end) => {
+                                    const index = this.items.findIndex(i => i.id === task.id);
+                                    if(index > -1) {
+                                        const format = (d) => {
+                                            const offset = d.getTimezoneOffset()
+                                            d = new Date(d.getTime() - (offset*60*1000))
+                                            return d.toISOString().split('T')[0]
+                                        }
+                                        this.items[index].start = format(start);
+                                        this.items[index].end = format(end);
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            console.error("Gantt rendering error", e);
+                        }
+                    }, 100);
+                },
+
+                changeGanttView(mode) {
+                    this.ganttViewMode = mode;
+                    if(this.ganttChart) this.ganttChart.change_view_mode(mode);
+                },
+
+                renderCalendar() {
+                    if (this.items.length === 0) return;
+
+                    setTimeout(() => {
+                        const calendarEl = document.getElementById('calendar');
+                        if(!calendarEl) return;
+                        
+                        const events = this.items.map(item => {
+                            let end = new Date(item.end);
+                            end.setDate(end.getDate() + 1);
+                            return {
+                                id: item.id,
+                                title: item.name,
+                                start: item.start,
+                                end: end.toISOString().split('T')[0],
+                                backgroundColor: '#22c55e', borderColor: '#16a34a'
+                            };
+                        });
+
+                        if (this.calendar) this.calendar.destroy();
+
+                        this.calendar = new FullCalendar.Calendar(calendarEl, {
+                            initialView: 'dayGridMonth',
+                            locale: 'pt-br',
+                            headerToolbar: {
+                                left: 'prev,next today',
+                                center: 'title',
+                                right: 'dayGridMonth,timeGridWeek'
+                            },
+                            events: events,
+                            eventClick: (info) => {
+                                const item = this.items.find(i => i.id === info.event.id);
+                                if(item) this.editItem(item);
+                            }
+                        });
+                        this.calendar.render();
+                    }, 100);
+                }
+            };
+        };
+    </script>
+    
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden" x-data="orcamentoApp()">
 
-    <div class="max-w-6xl mx-auto p-4 md:p-8">
-        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div>
-                <h1 class="text-3xl font-bold">Orçamentador <span class="text-blue-600">SISP</span></h1>
-                <p class="text-gray-500 dark:text-gray-400">Composição de Custos e Planejamento</p>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="changeTab('budget')" class="px-4 py-2 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">Orçamento</button>
-                <button onclick="changeTab('gantt')" class="px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800">Gantt</button>
-                <button onclick="exportToPDF()" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">PDF</button>
-            </div>
-        </header>
+    <!-- Navbar -->
+    <header class="bg-white border-b border-slate-200 shadow-sm z-10 shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-primary-100 text-primary-700 p-2 rounded-lg">
+                        <i class="ph ph-calculator text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xl leading-tight">Orçamento TI SISP</h1>
+                        <p class="text-xs text-slate-500 hidden sm:block">Composição Baseada em Custos TI SISP</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <span x-show="!isOnline" class="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200" style="display: none;">
+                        <i class="ph ph-wifi-slash"></i> Offline
+                    </span>
 
-        <main id="app-content">
-            <!-- View: Orçamento -->
-            <section id="view-budget" class="space-y-6">
-                <div class="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-semibold">Itens do Serviço (Base UST)</h2>
-                        <button onclick="openModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ Adicionar Item</button>
+                    <!-- File input oculto para importar JSON -->
+                    <input type="file" id="importFile" accept=".json" class="hidden" @change="importData">
+                    
+                    <button @click="document.getElementById('importFile').click()" class="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors flex items-center gap-1 sm:gap-2 border border-slate-200 px-2 sm:px-3 py-1.5 rounded-md hover:bg-slate-50" title="Importar JSON">
+                        <i class="ph ph-upload-simple"></i> <span class="hidden sm:inline">Importar</span>
+                    </button>
+
+                    <button @click="exportData" class="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors flex items-center gap-1 sm:gap-2 border border-slate-200 px-2 sm:px-3 py-1.5 rounded-md hover:bg-slate-50" title="Exportar JSON">
+                        <i class="ph ph-download-simple"></i> <span class="hidden sm:inline">Exportar</span>
+                    </button>
+
+                    <!-- Botão Gerar PDF (Laranja e Preto) -->
+                    <button @click="makePDF" :disabled="isGeneratingPDF" class="text-sm font-bold text-black bg-orange-500 hover:bg-orange-600 transition-colors flex items-center gap-1 sm:gap-2 border border-orange-600 px-2 sm:px-3 py-1.5 rounded-md shadow-sm disabled:opacity-50" title="Exportar PDF">
+                        <i class="ph" :class="isGeneratingPDF ? 'ph-spinner animate-spin' : 'ph-file-pdf'"></i> 
+                        <span class="hidden sm:inline" x-text="isGeneratingPDF ? 'Gerando...' : 'Gerar PDF'"></span>
+                    </button>
+                    
+                    <button @click="resetApp" class="text-sm font-medium text-red-600 hover:text-red-700 transition-colors flex items-center gap-1 sm:gap-2 border border-red-200 px-2 sm:px-3 py-1.5 rounded-md hover:bg-red-50" title="Limpar Tudo">
+                        <i class="ph ph-trash"></i> <span class="hidden sm:inline">Limpar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col hidden md:flex">
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+                <template x-for="tab in tabs" :key="tab.id">
+                    <button 
+                        @click="activeTab = tab.id; if(tab.id==='gantt') renderGantt(); if(tab.id==='calendario') renderCalendar();"
+                        :class="{'bg-primary-50 text-primary-700 border-primary-200': activeTab === tab.id, 'text-slate-600 hover:bg-slate-50 border-transparent': activeTab !== tab.id}"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg border transition-all text-left">
+                        <i :class="tab.icon + ' text-lg'"></i>
+                        <span x-text="tab.name"></span>
+                    </button>
+                </template>
+            </nav>
+            <div class="p-4 border-t border-slate-200">
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Estimado</h3>
+                    <div class="text-2xl font-bold text-slate-800" x-text="formatCurrency(totalCost)"></div>
+                    <div class="text-xs text-slate-500 mt-1"><span x-text="totalUST"></span> USTs Totais</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-6 lg:p-8">
+            
+            <!-- Mobile Tab Selector -->
+            <div class="md:hidden mb-4">
+                <select x-model="activeTab" @change="if(activeTab==='gantt') renderGantt(); if(activeTab==='calendario') renderCalendar();" class="w-full p-2 border border-slate-300 rounded-md bg-white shadow-sm focus:ring-primary-500 focus:border-primary-500">
+                    <template x-for="tab in tabs" :key="tab.id">
+                        <option :value="tab.id" x-text="tab.name"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- View: Dados da Empresa/Cliente -->
+            <div x-show="activeTab === 'info'" class="space-y-6">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-4xl">
+                    <div class="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
+                        <div class="bg-primary-100 text-primary-700 p-2 rounded-lg">
+                            <i class="ph ph-buildings text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800">Dados da Proposta</h2>
+                            <p class="text-sm text-slate-500">Informações que aparecerão no documento em PDF exportado.</p>
+                        </div>
                     </div>
                     
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="col-span-1 md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Empresa Contratante</label>
+                            <input type="text" x-model="projectInfo.empresa" placeholder="Nome da empresa cliente..." class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">CNPJ</label>
+                            <input type="text" x-model="projectInfo.cnpj" placeholder="00.000.000/0000-00" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Contato Responsável</label>
+                            <input type="text" x-model="projectInfo.contato" placeholder="Nome do responsável..." class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
+                            <input type="email" x-model="projectInfo.email" placeholder="contato@empresa.com" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
+                            <input type="text" x-model="projectInfo.telefone" placeholder="(00) 00000-0000" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Data da Proposta</label>
+                            <input type="date" x-model="projectInfo.dataProposta" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Itens de Composição -->
+            <div x-show="activeTab === 'itens'" class="space-y-6" style="display: none;">
+                <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Composição de Serviços (UST)</h2>
+                        <p class="text-sm text-slate-500">Adicione e ajuste os itens baseados na tabela SISP.</p>
+                    </div>
+                    <button @click="showAddItemModal = true" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
+                        <i class="ph ph-plus-circle text-lg"></i> Novo Item
+                    </button>
+                </div>
+
+                <!-- Global Cost Settings -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <label class="text-sm font-medium text-slate-700 whitespace-nowrap">Valor Base UST (R$):</label>
+                    <input type="number" x-model.number="baseUSTValue" step="0.01" class="w-32 border border-slate-300 rounded-md p-1.5 text-sm focus:ring-primary-500 focus:border-primary-500">
+                    <span class="text-xs text-slate-500 italic flex-1">Ajuste este valor para refletir a licitação atual ou referência.</span>
+                </div>
+
+                <!-- Items List -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead>
-                                <tr class="border-b dark:border-gray-700">
-                                    <th class="p-3">Serviço</th>
-                                    <th class="p-3">Qtd</th>
-                                    <th class="p-3">Valor (UST)</th>
-                                    <th class="p-3">Total</th>
-                                    <th class="p-3">Ações</th>
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Perfil / Atividade</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Complexidade</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Esforço (UST)</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Qtd</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Ajuste (%)</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Custo Total</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="budget-list"></tbody>
+                            <tbody class="bg-white divide-y divide-slate-200">
+                                <template x-for="(item, index) in items" :key="item.id">
+                                    <tr class="hover:bg-slate-50 transition-colors">
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm font-medium text-slate-900" x-text="item.name"></div>
+                                            <div class="text-xs text-slate-500" x-text="item.category"></div>
+                                            <div x-show="item.description" class="text-xs text-slate-600 mt-1 italic line-clamp-2" x-text="item.description"></div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                                  :class="{
+                                                    'bg-green-100 text-green-800': item.complexity === 'Baixa',
+                                                    'bg-yellow-100 text-yellow-800': item.complexity === 'Média',
+                                                    'bg-red-100 text-red-800': item.complexity === 'Alta'
+                                                  }" x-text="item.complexity">
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-slate-500" x-text="item.ustBase"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-slate-500">
+                                            <input type="number" x-model.number="item.quantity" min="1" class="w-16 border border-slate-300 rounded p-1 text-right text-sm focus:ring-primary-500 focus:border-primary-500">
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-slate-500">
+                                            <div class="flex items-center justify-end gap-1">
+                                                <input type="number" x-model.number="item.adjustment" class="w-16 border border-slate-300 rounded p-1 text-right text-sm focus:ring-primary-500 focus:border-primary-500">
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-slate-900" x-text="formatCurrency(calculateItemCost(item))"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                            <button @click="editItem(item)" class="text-primary-600 hover:text-primary-900 mx-1" title="Editar Datas">
+                                                <i class="ph ph-calendar-blank text-lg"></i>
+                                            </button>
+                                            <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900 mx-1" title="Remover">
+                                                <i class="ph ph-trash text-lg"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="items.length === 0">
+                                    <td colspan="7" class="px-6 py-10 text-center text-slate-500">
+                                        Nenhum item adicionado ao orçamento ainda. <br>
+                                        Clique em "Novo Item" para começar.
+                                    </td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
-            </section>
+            </div>
 
-            <!-- View: Gantt -->
-            <section id="view-gantt" class="hidden space-y-6">
-                <div class="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800">
-                    <h2 class="text-xl font-semibold mb-6">Cronograma de Execução</h2>
-                    <div id="gantt-container" class="space-y-4"></div>
+            <!-- View: Cronograma Gantt -->
+            <div x-show="activeTab === 'gantt'" class="space-y-4" style="display: none;">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Cronograma de Execução</h2>
+                        <p class="text-sm text-slate-500">Visualize a alocação temporal dos itens do orçamento.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="changeGanttView('Day')" class="px-3 py-1 text-sm border rounded hover:bg-slate-50" :class="{'bg-slate-100 font-bold': ganttViewMode==='Day'}">Dia</button>
+                        <button @click="changeGanttView('Week')" class="px-3 py-1 text-sm border rounded hover:bg-slate-50" :class="{'bg-slate-100 font-bold': ganttViewMode==='Week'}">Semana</button>
+                        <button @click="changeGanttView('Month')" class="px-3 py-1 text-sm border rounded hover:bg-slate-50" :class="{'bg-slate-100 font-bold': ganttViewMode==='Month'}">Mês</button>
+                    </div>
                 </div>
-            </section>
+                
+                <div x-show="items.length > 0" class="gantt-container bg-white p-2">
+                    <div x-ignore>
+                        <svg id="gantt"></svg>
+                    </div>
+                </div>
+                
+                <div x-show="items.length === 0" class="bg-white p-10 rounded-xl border border-slate-200 shadow-sm text-center text-slate-500">
+                    Adicione itens na aba "Composição" para visualizar o cronograma.
+                </div>
+            </div>
+
+            <!-- View: Calendário -->
+            <div x-show="activeTab === 'calendario'" class="space-y-4" style="display: none;">
+                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h2 class="text-lg font-bold text-slate-800">Visão em Calendário</h2>
+                    <p class="text-sm text-slate-500">Acompanhe as datas de início e fim das atividades.</p>
+                </div>
+                <div x-show="items.length > 0" class="bg-white p-4 rounded-xl shadow-sm">
+                    <div x-ignore>
+                        <div id="calendar"></div>
+                    </div>
+                </div>
+                <div x-show="items.length === 0" class="bg-white p-10 rounded-xl border border-slate-200 shadow-sm text-center text-slate-500">
+                    Adicione itens na aba "Composição" para visualizar o calendário.
+                </div>
+            </div>
+
         </main>
     </div>
 
-    <div id="modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-900 p-6 rounded-2xl w-full max-w-md border dark:border-gray-800">
-            <h3 class="text-xl font-bold mb-4">Novo Item SISP</h3>
-            <div class="space-y-4">
-                <input id="in-name" placeholder="Nome do Serviço" class="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700">
-                <div class="grid grid-cols-2 gap-4">
-                    <input id="in-qty" type="number" placeholder="Quantidade" class="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700">
-                    <input id="in-price" type="number" placeholder="Valor UST" class="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700">
+    <!-- Add Item Modal -->
+    <div x-show="showAddItemModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" style="display: none;">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showAddItemModal" x-transition.opacity class="fixed inset-0 bg-slate-900 bg-opacity-75 transition-opacity" aria-hidden="true" @click="showAddItemModal = false"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div x-show="showAddItemModal" x-transition class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-primary-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <i class="ph ph-list-plus text-primary-600 text-xl"></i>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-slate-900" id="modal-title">
+                                Adicionar Item do Catálogo SISP
+                            </h3>
+                            <div class="mt-4 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700">Categoria</label>
+                                    <select x-model="newItem.category" @change="updateCatalogOptions" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border">
+                                        <option value="">Selecione...</option>
+                                        <template x-for="cat in categories" :key="cat">
+                                            <option :value="cat" x-text="cat"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div x-show="newItem.category">
+                                    <label class="block text-sm font-medium text-slate-700">Atividade / Perfil</label>
+                                    <select x-model="newItem.catalogId" @change="selectCatalogItem" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border">
+                                        <option value="">Selecione...</option>
+                                        <template x-for="opt in currentCatalogOptions" :key="opt.id">
+                                            <option :value="opt.id" x-text="opt.name + ' (' + opt.complexity + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-4" x-show="newItem.catalogId">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700">Data Início</label>
+                                        <input type="date" x-model="newItem.start" class="mt-1 block w-full border-slate-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm border p-2">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700">Data Fim</label>
+                                        <input type="date" x-model="newItem.end" class="mt-1 block w-full border-slate-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm border p-2">
+                                    </div>
+                                </div>
+                                
+                                <!-- NOVO CAMPO: DESCRIÇÃO -->
+                                <div x-show="newItem.catalogId" class="mt-4">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Descrição (O que será feito)</label>
+                                    <textarea x-model="newItem.description" rows="3" class="w-full border border-slate-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm p-2" placeholder="Detalhes da atividade ou serviço..."></textarea>
+                                </div>
+                                
+                                <div x-show="newItem.catalogId" class="bg-slate-50 p-3 rounded text-sm border border-slate-200">
+                                    <strong>Referência SISP:</strong> <span x-text="newItem.ustBase"></span> UST
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <input id="in-start" type="date" class="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700">
-                    <input id="in-end" type="date" class="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700">
+                <div class="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button @click="addItem" :disabled="!newItem.catalogId || !newItem.start || !newItem.end" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        Adicionar
+                    </button>
+                    <button @click="showAddItemModal = false" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancelar
+                    </button>
                 </div>
-            </div>
-            <div class="flex justify-end gap-2 mt-6">
-                <button onclick="closeModal()" class="px-4 py-2 text-gray-500">Cancelar</button>
-                <button onclick="saveItem()" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Salvar</button>
             </div>
         </div>
     </div>
 
-    <script>
-        let items = JSON.parse(localStorage.getItem('orcamento_sisp')) || [];
-
-        function render() {
-            const list = document.getElementById('budget-list');
-            list.innerHTML = items.map((i, idx) => `
-                <tr class="dark:border-gray-700 pt-2">
-                    <td class="p-3 pb-1">${i.name}</td>
-                    <td class="p-3 pb-1">${i.qty}</td>
-                    <td class="p-3 pb-1">${i.price}</td>
-                    <td class="p-3 pb-1 font-bold">${(i.qty * i.price).toFixed(2)}</td>
-                    <td class="p-3 pb-1 text-red-500 cursor-pointer hover:underline" onclick="deleteItem(${idx})">Remover</td>
-                </tr>
-                <tr class="border-b dark:border-gray-700">
-                    <td colspan="5" class="px-3 pb-3 pt-0">
-                        <textarea 
-                            placeholder="Descreva o que será feito neste serviço..." 
-                            class="w-full p-2 mt-1 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800/50 focus:ring-2 focus:ring-blue-500 outline-none resize-y transition-colors"
-                            onchange="updateDescription(${idx}, this.value)"
-                            rows="2"
-                        >${i.description || ''}</textarea>
-                    </td>
-                </tr>
-            `).join('');
-            
-            const gantt = document.getElementById('gantt-container');
-            gantt.innerHTML = items.map(i => `
-                <div>
-                    <div class="text-sm font-medium mb-1">${i.name}</div>
-                    <div class="w-full bg-gray-200 dark:bg-gray-800 h-6 rounded-lg overflow-hidden">
-                        <div class="gantt-bar bg-blue-500" style="width: 100%"></div>
+    <!-- Edit Dates Modal -->
+    <div x-show="showEditModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+         <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:p-0">
+            <div class="fixed inset-0 bg-slate-900 bg-opacity-75 transition-opacity" @click="showEditModal = false"></div>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full z-10 p-6">
+                <h3 class="text-lg leading-6 font-medium text-slate-900 mb-4">Ajustar Datas do Item</h3>
+                <p class="text-sm text-slate-500 mb-4" x-text="editingItem?.name"></p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Data Início</label>
+                        <input type="date" x-model="editingItemDates.start" class="mt-1 block w-full border-slate-300 rounded-md shadow-sm border p-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Data Fim</label>
+                        <input type="date" x-model="editingItemDates.end" class="mt-1 block w-full border-slate-300 rounded-md shadow-sm border p-2">
                     </div>
                 </div>
-            `).join('');
-        }
+                
+                <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+                    <button @click="saveEditItem" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 sm:ml-3 sm:w-auto sm:text-sm">
+                        Salvar
+                    </button>
+                    <button @click="showEditModal = false" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+         </div>
+    </div>
 
-        function saveItem() {
-            const name = document.getElementById('in-name').value;
-            const qty = document.getElementById('in-qty').value;
-            const price = document.getElementById('in-price').value;
-            const start = document.getElementById('in-start').value;
-            const end = document.getElementById('in-end').value;
-
-            if(name && qty && price) {
-                items.push({ name, qty, price, start, end });
-                localStorage.setItem('orcamento_sisp', JSON.stringify(items));
-                closeModal();
-                render();
-            }
-        }
-
-        function deleteItem(idx) {
-            items.splice(idx, 1);
-            localStorage.setItem('orcamento_sisp', JSON.stringify(items));
-            render();
-        }
-
-        function updateDescription(idx, value) {
-            items[idx].description = value;
-            localStorage.setItem('orcamento_sisp', JSON.stringify(items));
-        }
-
-        function changeTab(tab) {
-            document.getElementById('view-budget').classList.toggle('hidden', tab !== 'budget');
-            document.getElementById('view-gantt').classList.toggle('hidden', tab !== 'gantt');
-        }
-
-        function openModal() { document.getElementById('modal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-
-        function exportToPDF() {
-            const element = document.getElementById('app-content');
-            html2pdf().from(element).set({
-                margin: 10,
-                filename: 'Orcamento_SISP.pdf',
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            }).save();
-        }
-
-        render();
-    </script>
 </body>
 </html>
