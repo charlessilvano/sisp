@@ -1,0 +1,8 @@
+{
+  "name": "Orçamento SISP TI",
+  "short_name": "SISP TI",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316"
+}
